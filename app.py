@@ -1,9 +1,8 @@
 import streamlit as st
-import streamlit.components.v1 as components
 
 # Page Configuration
 st.set_page_config(
-    page_title="Healthcare Assistant App",
+    page_title="Interactive Healthcare Assistant",
     page_icon="🩺",
     layout="wide"
 )
@@ -38,13 +37,12 @@ st.markdown("""
         margin-bottom: 10px;
         background-color: #FFFFFF;
     }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        font-size: 1.1rem;
-        font-weight: 600;
+    .body-box {
+        background-color: #F8FAFC;
+        border: 1px solid #CBD5E1;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -52,6 +50,8 @@ st.markdown("""
 # -----------------------------------------------------------------------------
 # SESSION STATE INITIALIZATION
 # -----------------------------------------------------------------------------
+if "current_step" not in st.session_state:
+    st.session_state.current_step = 1
 if "user_name" not in st.session_state:
     st.session_state.user_name = ""
 if "user_age" not in st.session_state:
@@ -61,7 +61,7 @@ if "user_gender" not in st.session_state:
 if "symptoms_text" not in st.session_state:
     st.session_state.symptoms_text = ""
 if "selected_parts" not in st.session_state:
-    st.session_state.selected_parts = []
+    st.session_state.selected_parts = set()
 if "is_emergency" not in st.session_state:
     st.session_state.is_emergency = False
 if "user_location" not in st.session_state:
@@ -221,8 +221,8 @@ HOSPITAL_DATABASE = {
 # -----------------------------------------------------------------------------
 # HEADER & DISCLAIMER
 # -----------------------------------------------------------------------------
-st.markdown('<div class="main-header">🩺 Interactive Healthcare Assistant</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Complete the 3-step process to receive personalized health insights and emergency hospital options.</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">🩺 Healthcare Assistant</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">Follow the steps below to record your details, pinpoint discomfort areas, and generate a medical assessment report.</div>', unsafe_allow_html=True)
 
 st.markdown("""
 <div class="disclaimer-box">
@@ -231,31 +231,28 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
-# PAGE NAVIGATION (3 PAGES / TABS)
-# -----------------------------------------------------------------------------
-tab1, tab2, tab3 = st.tabs([
-    "👤 Page 1: Basic Info", 
-    "🩺 Page 2: Symptom Checker & Body Map", 
-    "🏥 Page 3: Hospitals & Generate Report"
-])
+# Step Progress Bar
+progress_labels = ["1️⃣ Basic Info", "2️⃣ Symptom & Body Map", "3️⃣ Hospitals & Report"]
+st.progress(st.session_state.current_step / 3)
+st.caption(f"**Current Step:** Step {st.session_state.current_step} of 3 — {progress_labels[st.session_state.current_step - 1]}")
+st.markdown("---")
 
 # =============================================================================
-# PAGE 1: BASIC INFORMATION
+# PAGE 1: BASIC DETAILS
 # =============================================================================
-with tab1:
-    st.markdown("### Step 1: Personal Details")
-    st.write("Please provide your basic information below to personalize your healthcare report.")
-    
+if st.session_state.current_step == 1:
+    st.markdown("### 👤 Page 1: Personal Details")
+    st.write("Please complete all required fields to proceed to the next step.")
+
     col1, col2 = st.columns(2)
     with col1:
         st.session_state.user_name = st.text_input(
-            "Full Name", 
+            "Full Name *", 
             value=st.session_state.user_name, 
             placeholder="e.g., Alex Johnson"
         )
         st.session_state.user_age = st.number_input(
-            "Age", 
+            "Age *", 
             min_value=1, 
             max_value=120, 
             value=st.session_state.user_age
@@ -263,124 +260,114 @@ with tab1:
     
     with col2:
         gender_options = ["Select", "Male", "Female", "Non-Binary", "Prefer not to say"]
-        gender_index = gender_options.index(st.session_state.user_gender) if st.session_state.user_gender in gender_options else 0
+        gender_idx = gender_options.index(st.session_state.user_gender) if st.session_state.user_gender in gender_options else 0
         st.session_state.user_gender = st.selectbox(
-            "Gender", 
+            "Gender *", 
             options=gender_options, 
-            index=gender_index
+            index=gender_idx
         )
 
-    st.info("👉 Once filled, proceed to **Page 2: Symptom Checker & Body Map** tab above.")
+    st.markdown("<br/>", unsafe_allow_html=True)
+    
+    # Validation Check
+    p1_valid = bool(st.session_state.user_name.strip()) and st.session_state.user_gender != "Select"
+    
+    if not p1_valid:
+        st.warning("⚠️ Please fill in your Name and select a Gender to unlock the Next page.")
+    
+    if st.button("Next ➡️ (Go to Page 2)", type="primary", disabled=not p1_valid):
+        st.session_state.current_step = 2
+        st.rerun()
 
 # =============================================================================
-# PAGE 2: SYMPTOM CHECKER & INTERACTIVE FULL BODY MAP
+# PAGE 2: SYMPTOM CHECKER & INTERACTIVE BODY MAP
 # =============================================================================
-with tab2:
-    st.markdown("### Step 2: Symptom Checker & Body Map")
+elif st.session_state.current_step == 2:
+    st.markdown("### 🩺 Page 2: Symptom Checker & Interactive Body Map")
+    st.write("Click on any body part button to mark pain areas, or describe your symptoms below.")
+
     col_text, col_map = st.columns([1, 1.2], gap="large")
 
     with col_text:
-        st.markdown("#### Describe Your Current Symptoms")
+        st.markdown("#### Describe Your Symptoms")
         st.session_state.symptoms_text = st.text_area(
             "State how you are feeling:",
             value=st.session_state.symptoms_text,
             placeholder="e.g., Sharp headache, discomfort in chest, fatigue...",
-            height=150
+            height=180
         )
 
     with col_map:
         st.markdown("#### Interactive Full Body Map")
-        st.caption("Click on the anatomical body diagram or select the body regions below:")
+        st.caption("Click any body region button below to toggle selection (Selected areas turn RED):")
 
-        body_map_html = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 0; }
-                .container { position: relative; width: 240px; height: 440px; }
-                svg { width: 100%; height: 100%; }
-                .body-region {
-                    fill: #64748B;
-                    fill-opacity: 0.25;
-                    stroke: #334155;
-                    stroke-width: 2;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                }
-                .body-region:hover { fill: #3B82F6; fill-opacity: 0.5; }
-                .body-region.selected { fill: #EF4444 !important; fill-opacity: 0.7 !important; stroke: #B91C1C !important; }
-                .label { font-size: 11px; fill: #1E293B; font-weight: bold; pointer-events: none; }
-                .selection-box { margin-top: 8px; font-size: 12px; color: #1E3A8A; font-weight: 600; text-align: center; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <svg viewBox="0 0 200 450">
-                    <g opacity="0.15" fill="#000">
-                        <circle cx="100" cy="40" r="28"/>
-                        <rect x="94" y="68" width="12" height="15"/>
-                        <path d="M 60,83 L 140,83 L 155,190 L 140,200 L 135,130 L 135,230 L 65,230 L 65,130 L 45,200 L 45,190 Z"/>
-                        <rect x="70" y="230" width="25" height="180" rx="10"/>
-                        <rect x="105" y="230" width="25" height="180" rx="10"/>
-                    </g>
+        # Full Body Illustration + Interactive Buttons
+        st.markdown("""
+        <div style="text-align: center; margin-bottom: 10px;">
+            <svg width="180" height="260" viewBox="0 0 200 450" style="background: #F1F5F9; border-radius: 8px; border: 1px solid #CBD5E1;">
+                <circle cx="100" cy="40" r="28" fill="#94A3B8"/> <!-- Head -->
+                <rect x="94" y="68" width="12" height="15" fill="#94A3B8"/> <!-- Neck -->
+                <path d="M 60,83 L 140,83 L 155,190 L 140,200 L 135,130 L 135,230 L 65,230 L 65,130 L 45,200 L 45,190 Z" fill="#64748B"/> <!-- Torso/Arms -->
+                <rect x="70" y="230" width="25" height="180" rx="10" fill="#475569"/> <!-- Leg L -->
+                <rect x="105" y="230" width="25" height="180" rx="10" fill="#475569"/> <!-- Leg R -->
+            </svg>
+        </div>
+        """, unsafe_allow_html=True)
 
-                    <!-- Interactive Regions -->
-                    <path id="Head / Scalp" class="body-region" d="M 75,40 A 25,25 0 1,1 125,40 A 25,25 0 1,1 75,40 Z" />
-                    <text x="100" y="32" class="label" text-anchor="middle">Head</text>
+        # Interactive Streamlit Buttons for each Body Part
+        grid = st.columns(2)
+        for idx, part in enumerate(KNOWLEDGE_BASE.keys()):
+            col_target = grid[idx % 2]
+            is_selected = part in st.session_state.selected_parts
+            btn_label = f"🔴 {part}" if is_selected else f"⚪ {part}"
+            
+            if col_target.button(btn_label, key=f"btn_{part}", use_container_width=True):
+                if is_selected:
+                    st.session_state.selected_parts.remove(part)
+                else:
+                    st.session_state.selected_parts.add(part)
+                st.rerun()
 
-                    <rect id="Eyes / Ears / Nose" class="body-region" x="80" y="42" width="40" height="22" rx="4" />
-                    <text x="100" y="56" class="label" text-anchor="middle">Face</text>
+        if st.session_state.selected_parts:
+            st.success(f"**Selected Areas:** {', '.join(st.session_state.selected_parts)}")
+        else:
+            st.info("No body region selected yet. Click the buttons above.")
 
-                    <path id="Chest / Heart" class="body-region" d="M 65,85 L 135,85 L 130,145 L 70,145 Z" />
-                    <text x="100" y="118" class="label" text-anchor="middle">Chest</text>
-
-                    <path id="Abdomen / Stomach" class="body-region" d="M 70,148 L 130,148 L 125,215 L 75,215 Z" />
-                    <text x="100" y="185" class="label" text-anchor="middle">Abdomen</text>
-
-                    <g id="Arms / Hands" class="body-region">
-                        <path d="M 45,88 L 62,88 L 55,200 L 38,200 Z" />
-                        <path d="M 138,88 L 155,88 L 162,200 L 145,200 Z" />
-                    </g>
-
-                    <g id="Legs / Feet" class="body-region">
-                        <rect x="68" y="220" width="28" height="200" rx="8" />
-                        <rect x="104" y="220" width="28" height="200" rx="8" />
-                    </g>
-                    <text x="100" y="320" class="label" text-anchor="middle">Legs</text>
-                </svg>
-            </div>
-            <div class="selection-box">Click regions to mark pain/uneasiness</div>
-        </body>
-        </html>
-        """
-        components.html(body_map_html, height=480)
-
-        st.session_state.selected_parts = st.multiselect(
-            "Selected Pain / Discomfort Areas:",
-            options=list(KNOWLEDGE_BASE.keys()),
-            default=st.session_state.selected_parts
-        )
-
-    st.info("👉 Proceed to **Page 3: Hospitals & Generate Report** tab above.")
-
-# =============================================================================
-# PAGE 3: HOSPITALS & REPORT GENERATION
-# =============================================================================
-with tab3:
-    st.markdown("### Step 3: Nearby Area Hospitals & Report Generation")
+    st.markdown("<br/>", unsafe_allow_html=True)
     
-    # Emergency & Location Selection Section
-    st.markdown("#### 🚨 Emergency Check & Location Selection")
+    # Validation Check
+    p2_valid = len(st.session_state.selected_parts) > 0 or bool(st.session_state.symptoms_text.strip())
+    
+    col_nav1, col_nav2 = st.columns([1, 1])
+    with col_nav1:
+        if st.button("⬅️ Back (Page 1)"):
+            st.session_state.current_step = 1
+            st.rerun()
+            
+    with col_nav2:
+        if not p2_valid:
+            st.warning("⚠️ Select at least one body part OR enter symptom details to proceed.")
+        if st.button("Next ➡️ (Go to Page 3)", type="primary", disabled=not p2_valid):
+            st.session_state.current_step = 3
+            st.rerun()
+
+# =============================================================================
+# PAGE 3: HOSPITALS & GENERATE REPORT
+# =============================================================================
+elif st.session_state.current_step == 3:
+    st.markdown("### 🏥 Page 3: Location, Hospitals & Report Generation")
+
+    # Emergency & Location Section
+    st.markdown("#### 🚨 Urgent Care & Hospital Lookup")
     st.session_state.is_emergency = st.checkbox(
-        "Is this an urgent / emergency situation?",
+        "Check here if you consider this an EMERGENCY",
         value=st.session_state.is_emergency
     )
     
     st.session_state.user_location = st.text_input(
-        "Enter your City / Town / Nearby Area:",
+        "Enter your City / Town / Area:",
         value=st.session_state.user_location,
-        placeholder="e.g., New York, London, Delhi, or your town name"
+        placeholder="e.g., New York, London, Delhi..."
     )
 
     if st.session_state.user_location:
@@ -388,7 +375,7 @@ with tab3:
             (city for city in HOSPITAL_DATABASE if city.lower() in st.session_state.user_location.lower()), 
             None
         )
-        st.markdown(f"##### Nearby Hospitals in/around '{st.session_state.user_location}':")
+        st.markdown(f"##### Nearby Hospitals around '{st.session_state.user_location}':")
         
         if matched_city:
             for hosp in HOSPITAL_DATABASE[matched_city]:
@@ -402,53 +389,55 @@ with tab3:
         else:
             st.markdown(f"""
             <div class="hospital-card">
-                <strong style="color: #1E3A8A; font-size: 1.05rem;">🏥 Community General Emergency Hospital</strong><br/>
-                <span style="color: #4B5563;">📍 Address: Central Medical Zone, {st.session_state.user_location}</span><br/>
-                <span style="color: #059669; font-weight: 600;">📞 Emergency Hotline: 911 / 112 / 102</span>
+                <strong style="color: #1E3A8A; font-size: 1.05rem;">🏥 General Emergency & Community Hospital</strong><br/>
+                <span style="color: #4B5563;">📍 Address: Medical Hub, {st.session_state.user_location}</span><br/>
+                <span style="color: #059669; font-weight: 600;">📞 Emergency Services: 911 / 112 / 102</span>
             </div>
             """, unsafe_allow_html=True)
 
     st.markdown("---")
     
-    # Generate Report Button
-    if st.button("📋 Generate My Healthcare Report", type="primary", use_container_width=True):
-        if not st.session_state.user_name:
-            st.warning("⚠️ Please fill in your name on **Page 1** first.")
-        elif not st.session_state.selected_parts and not st.session_state.symptoms_text:
-            st.warning("⚠️ Please select affected body areas or describe symptoms on **Page 2** first.")
-        else:
-            st.markdown("## 📄 Comprehensive Patient Summary Report")
-            
-            st.markdown(f"""
-            **Patient Profile:** {st.session_state.user_name} | **Age:** {st.session_state.user_age} | **Gender:** {st.session_state.user_gender}  
-            **Current Location:** {st.session_state.user_location if st.session_state.user_location else "Not provided"}  
-            **Reported Symptoms:** {st.session_state.symptoms_text if st.session_state.symptoms_text else "None described"}  
-            **Affected Body Areas:** {', '.join(st.session_state.selected_parts) if st.session_state.selected_parts else "General / Unspecified"}
-            """)
-            st.markdown("---")
+    col_nav1, col_nav2 = st.columns([1, 1])
+    with col_nav1:
+        if st.button("⬅️ Back (Page 2)"):
+            st.session_state.current_step = 2
+            st.rerun()
 
-            # Collect summary insights
-            causes, tests, tips = [], [], []
-            parts = st.session_state.selected_parts if st.session_state.selected_parts else list(KNOWLEDGE_BASE.keys())[:2]
+    st.markdown("<br/>", unsafe_allow_html=True)
+    
+    # Generate Assessment Report
+    if st.button("📋 Generate My Assessment Report", type="primary", use_container_width=True):
+        st.markdown("## 📄 Comprehensive Health Summary Report")
+        
+        st.markdown(f"""
+        **Patient Name:** {st.session_state.user_name} | **Age:** {st.session_state.user_age} | **Gender:** {st.session_state.user_gender}  
+        **Location:** {st.session_state.user_location if st.session_state.user_location else "Not specified"}  
+        **Reported Symptoms:** {st.session_state.symptoms_text if st.session_state.symptoms_text else "None described"}  
+        **Selected Pain Areas:** {', '.join(st.session_state.selected_parts) if st.session_state.selected_parts else "Unspecified"}
+        """)
+        st.markdown("---")
 
-            for part in parts:
-                if part in KNOWLEDGE_BASE:
-                    causes.extend(KNOWLEDGE_BASE[part]["causes"])
-                    tests.extend(KNOWLEDGE_BASE[part]["tests"])
-                    tips.extend(KNOWLEDGE_BASE[part]["wellness_tips"])
+        causes, tests, tips = [], [], []
+        parts = st.session_state.selected_parts if st.session_state.selected_parts else list(KNOWLEDGE_BASE.keys())[:2]
 
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                st.markdown("### 🔍 Potential Causes")
-                for item in list(dict.fromkeys(causes)):
-                    st.markdown(f"- {item}")
-            with c2:
-                st.markdown("### 🧪 Potential Diagnostic Tests")
-                for item in list(dict.fromkeys(tests)):
-                    st.markdown(f"- {item}")
-            with c3:
-                st.markdown("### 💡 Wellness & Treatment Tips")
-                for item in list(dict.fromkeys(tips)):
-                    st.markdown(f"- {item}")
+        for part in parts:
+            if part in KNOWLEDGE_BASE:
+                causes.extend(KNOWLEDGE_BASE[part]["causes"])
+                tests.extend(KNOWLEDGE_BASE[part]["tests"])
+                tips.extend(KNOWLEDGE_BASE[part]["wellness_tips"])
 
-            st.success("✅ Report successfully generated! Show this summary to your consulting medical doctor.")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown("### 🔍 Potential Causes")
+            for item in list(dict.fromkeys(causes)):
+                st.markdown(f"- {item}")
+        with c2:
+            st.markdown("### 🧪 Recommended Tests")
+            for item in list(dict.fromkeys(tests)):
+                st.markdown(f"- {item}")
+        with c3:
+            st.markdown("### 💡 Wellness & Treatment Tips")
+            for item in list(dict.fromkeys(tips)):
+                st.markdown(f"- {item}")
+
+        st.success("✅ Assessment report generated! You can present this summary to a medical practitioner.")
